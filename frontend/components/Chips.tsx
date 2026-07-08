@@ -1,4 +1,10 @@
-import type { ChallengeStatus } from "@/lib/contracts/types";
+import type { ChallengeStatus, ChallengeMode } from "@/lib/contracts/types";
+
+export function ModeChip({ mode }: { mode: ChallengeMode }) {
+  return mode === "VAULT"
+    ? <span className="chip chip-amber">Vault</span>
+    : <span className="chip chip-closed">Verdict</span>;
+}
 
 export function StatusChip({ status }: { status: ChallengeStatus }) {
   const cls = status === "OPEN" ? "chip-open" : status === "BROKEN" ? "chip-broken" : "chip-closed";

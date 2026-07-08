@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Loader2, Crosshair } from "lucide-react";
 import { useChallenges } from "@/lib/hooks/useGauntlet";
 import { formatGen, shortAddr } from "@/lib/utils";
-import { StatusChip, ResilienceMeter } from "@/components/Chips";
+import { StatusChip, ModeChip, ResilienceMeter } from "@/components/Chips";
 import { HowTo } from "@/components/HowTo";
 import type { ChallengeStatus } from "@/lib/contracts/types";
 
@@ -59,7 +59,7 @@ export default function TargetsPage() {
             <Link key={c.challenge_id} href={`/targets/${c.challenge_id}`}
               className={`card card-hover p-5 block ${c.status === "BROKEN" ? "card-breach" : ""}`}>
               <div className="flex items-center justify-between mb-3">
-                <StatusChip status={c.status} />
+                <div className="flex items-center gap-2"><StatusChip status={c.status} /><ModeChip mode={c.mode} /></div>
                 <span className="mono text-xs text-muted">#{c.challenge_id}</span>
               </div>
               <div className="display text-xl text-ink mb-1">{c.title}</div>

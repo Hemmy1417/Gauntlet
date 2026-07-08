@@ -65,6 +65,7 @@ class Gauntlet {
       ...c,
       challenge_id:     String(c.challenge_id ?? ""),
       sponsor:          String(c.sponsor ?? ""),
+      mode:             (String(c.mode ?? "VERDICT").toUpperCase() === "VAULT" ? "VAULT" : "VERDICT"),
       allowed_verdicts: Array.isArray(c.allowed_verdicts) ? c.allowed_verdicts.map(String) : [],
       bounty_wei:       String(c.bounty_wei ?? "0"),
       attempts:         Number(c.attempts ?? 0),
@@ -137,12 +138,12 @@ class Gauntlet {
   async createChallenge(args: {
     title: string; brief: string; task: string; criteria: string;
     guardrailText: string; expectedVerdict: string; allowedVerdicts: string[];
-    bountyWei: bigint;
+    mode?: "VERDICT" | "VAULT"; bountyWei: bigint;
   }) {
     return this.write(
       "create_challenge",
       [args.title, args.brief, args.task, args.criteria, args.guardrailText,
-       args.expectedVerdict, args.allowedVerdicts],
+       args.expectedVerdict, args.allowedVerdicts, args.mode ?? "VERDICT"],
       args.bountyWei,
     );
   }

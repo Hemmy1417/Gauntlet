@@ -8,7 +8,7 @@ import {
 } from "@/lib/hooks/useGauntlet";
 import { useWallet } from "@/lib/genlayer/wallet";
 import { formatGen, shortAddr } from "@/lib/utils";
-import { StatusChip, OutcomeChip, ResilienceMeter } from "@/components/Chips";
+import { StatusChip, OutcomeChip, ModeChip, ResilienceMeter } from "@/components/Chips";
 import { error as toastError } from "@/lib/toast";
 import type { Attack } from "@/lib/contracts/types";
 
@@ -34,7 +34,7 @@ export default function TargetPage({ params }: { params: Promise<{ id: string }>
     <div className="mx-auto max-w-3xl px-5 py-10 space-y-6">
       <div className={c.status === "BROKEN" ? "card-breach p-7" : "card p-7"}>
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-          <StatusChip status={c.status} />
+          <div className="flex items-center gap-2"><StatusChip status={c.status} /><ModeChip mode={c.mode} /></div>
           <span className="mono text-xs text-muted">Target #{c.challenge_id}</span>
         </div>
         <h1 className="display text-3xl text-ink mb-2">{c.title}</h1>
@@ -42,7 +42,7 @@ export default function TargetPage({ params }: { params: Promise<{ id: string }>
 
         <div className="grid sm:grid-cols-3 gap-3 mb-5">
           <div className="rounded-lg p-4" style={{ background: "var(--surface-dim)" }}>
-            <div className="eyebrow mb-1" style={{ color: "var(--muted)" }}>Pot</div>
+            <div className="eyebrow mb-1" style={{ color: "var(--muted)" }}>{c.mode === "VAULT" ? "Vault" : "Pot"}</div>
             <div className="display text-xl" style={{ color: "var(--breach)" }}>{formatGen(c.bounty_wei)} GEN</div>
           </div>
           <div className="rounded-lg p-4" style={{ background: "var(--surface-dim)" }}>
@@ -59,7 +59,7 @@ export default function TargetPage({ params }: { params: Promise<{ id: string }>
 
         {/* The honeypot spec */}
         <div className="mt-5 rounded-lg p-4 font-mono text-xs leading-relaxed" style={{ background: "var(--surface-dim)", border: "1px solid var(--line)" }}>
-          <div className="eyebrow mb-2" style={{ color: "var(--muted)" }}>The panel's task</div>
+          <div className="eyebrow mb-2" style={{ color: "var(--muted)" }}>{c.mode === "VAULT" ? "The gatekeeper" : "The panel's task"}</div>
           <p className="text-soft whitespace-pre-wrap mb-3">{c.task}</p>
           {c.criteria && <><div className="eyebrow mb-1" style={{ color: "var(--muted)" }}>Criteria</div><p className="text-soft whitespace-pre-wrap mb-3">{c.criteria}</p></>}
           <div className="eyebrow mb-1" style={{ color: "var(--breach)" }}>Guardrail under test</div>

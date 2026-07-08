@@ -3,9 +3,12 @@
 
 export type ChallengeStatus = "OPEN" | "BROKEN" | "CLOSED";
 
+export type ChallengeMode = "VERDICT" | "VAULT";
+
 export interface Challenge {
   challenge_id: string;
   sponsor: string;
+  mode: ChallengeMode;
   title: string;
   brief: string;
   task: string;

@@ -114,11 +114,12 @@ function useGauntletMutation<TArgs>(opts: {
 export function useCreateChallenge() {
   const m = useGauntletMutation<{
     title: string; brief: string; task: string; criteria: string;
-    guardrailText: string; expectedVerdict: string; allowedVerdicts: string[]; bountyWei: bigint;
+    guardrailText: string; expectedVerdict: string; allowedVerdicts: string[];
+    mode?: "VERDICT" | "VAULT"; bountyWei: bigint;
   }>({
     run: (c, a) => c.createChallenge(a),
-    successTitle: () => "Honeypot planted",
-    successDescription: () => "The bounty is locked. Attackers can now take their shot.",
+    successTitle: (a) => (a.mode === "VAULT" ? "Vault sealed" : "Honeypot planted"),
+    successDescription: () => "The funds are locked. Attackers can now take their shot.",
     errorTitle: "Could not plant the honeypot",
   });
   return { createChallenge: m.mutate, isCreating: m.isPending };
