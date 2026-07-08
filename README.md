@@ -7,7 +7,15 @@ can submit a crafted payload trying to make the panel rule *wrong* — and a
 **deterministic referee** (plain code, never another model) confirms the
 flip and pays the bounty.
 
-**Contract:** `0xD69633CCB9AB3fEf1aebCcAf9cA019448bB3FC1b` (GenLayer Studionet)
+**Contract:** `0x5F7645Cdb29fD43CE237606D0cD502fC3D72f88d` (GenLayer Studionet)
+
+> **Two challenge modes.** *Verdict* — the panel classifies and the attacker
+> tries to flip the answer. *Vault* — the honeypot is a token vault behind an
+> AI gatekeeper: the locked GEN is the vault, the contract writes the
+> gatekeeper prompt, and the sponsor supplies only the authorized-release
+> condition. Fooling the gate into `APPROVE` drains the whole vault. It's the
+> native GenLayer way to "attack a token contract" — you don't break the
+> math, you fool the AI guardian.
 
 ## The loop
 
@@ -57,7 +65,14 @@ them.
 Material 3 (Google Stitch DNA) flipped to a **dark red-team console**: live
 status strip, "hottest targets," a resilience meter per honeypot, a public
 **breach log** (the attack corpus), and a **leaderboard** of top breakers
-and most-resilient targets. Sora display + JetBrains Mono.
+and most-resilient targets. Sora display + JetBrains Mono. `/new` carries a
+Verdict/Vault mode toggle with working presets.
+
+**Validated on-chain:** a strong guardrail held against classic jailbreaks
+(naive override, DAN roleplay, fake authority); a deliberately weak verdict
+honeypot and a lax vault gate were both breached, with the vault draining
+its full pot to the attacker's wallet. Strong defenses hold, sloppy ones pay
+out — exactly the lesson the arena exists to teach.
 
 ```
 ├── contracts/gauntlet.py    # the Intelligent Contract (referee + escrow)
