@@ -3,7 +3,7 @@ import { Sora, JetBrains_Mono } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
 import { Providers } from "./providers";
-import { Nav } from "@/components/Nav";
+import { Dock, Hud } from "@/components/Dock";
 import { Backdrop } from "@/components/Backdrop";
 import { NetworkBanner } from "@/components/NetworkBanner";
 import { CONTRACT_ADDRESS, explorerAddressUrl } from "@/lib/config";
@@ -24,11 +24,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen flex flex-col">
         <Providers>
           <Backdrop />
+          <Hud />
           <NetworkBanner />
-          <Nav />
-          <main className="flex-1">{children}</main>
+          {/* top clearance for the floating brand/status HUD, bottom for the dock */}
+          <main className="flex-1 pt-16">{children}</main>
           <footer style={{ borderTop: "1px solid var(--line)" }}>
-            <div className="mx-auto max-w-6xl px-5 py-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted">
+            <div className="mx-auto max-w-6xl px-5 py-6 pb-24 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted">
               <span className="mono">Every attack — held or breach — is a public GenLayer record.</span>
               <Link href={explorerAddressUrl(CONTRACT_ADDRESS)} target="_blank"
                 className="font-semibold hover:underline mono" style={{ color: "var(--breach)" }}>
@@ -36,6 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </Link>
             </div>
           </footer>
+          <Dock />
         </Providers>
       </body>
     </html>
