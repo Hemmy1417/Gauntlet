@@ -91,3 +91,13 @@ npm run dev -- -p 4800
 ```
 
 Tests: `python -m pytest tests/direct -q` from the repo root.
+
+## Signed writes
+
+Contract writes are signed by the **connected wallet's own EIP-1193 provider**. The
+contract wrapper resolves the injected provider (preferring MetaMask when several
+wallets are installed) and binds it into the genlayer-js client, so every transaction
+is signed by the wallet the user actually picked — never an implicit `window.ethereum`
+fallback that could be the wrong extension. A repository-level test
+(`frontend/tests/signed-write.test.ts`) proves the write path routes
+`eth_sendTransaction` through that provider with the correct `from`.
