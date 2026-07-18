@@ -1,103 +1,187 @@
-# Gauntlet — adversarial honeypot arena for Intelligent Contracts
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Hemmy1417/Gauntlet/master/frontend/app/icon.svg" alt="Gauntlet" width="140" />
+</p>
 
-Gauntlet turns prompt-injection into a paid sport. A sponsor plants an
-AI-adjudicated honeypot with an **objectively-correct answer**, locks a
-bounty, and publishes the guardrail block they want stress-tested. Anyone
-can submit a crafted payload trying to make the panel rule *wrong* — and a
-**deterministic referee** (plain code, never another model) confirms the
-flip and pays the bounty.
+# Gauntlet - Adversarial Prompt-Injection Arena
 
-**Contract:** `0x5F7645Cdb29fD43CE237606D0cD502fC3D72f88d` (GenLayer Studionet)
+**Prompt-injection as a paid sport on GenLayer - the AI panel is the target, deterministic code is
+the referee.**
 
-> **Two challenge modes.** *Verdict* — the panel classifies and the attacker
-> tries to flip the answer. *Vault* — the honeypot is a token vault behind an
-> AI gatekeeper: the locked GEN is the vault, the contract writes the
-> gatekeeper prompt, and the sponsor supplies only the authorized-release
-> condition. Fooling the gate into `APPROVE` drains the whole vault. It's the
-> native GenLayer way to "attack a token contract" — you don't break the
-> math, you fool the AI guardian.
+A sponsor plants an AI-adjudicated honeypot with an objectively-correct answer, locks a bounty, and
+publishes the guardrail they want stress-tested. Anyone submits a crafted payload trying to make the
+panel rule *wrong* - and a deterministic referee (plain code, never another model) confirms the flip
+and pays the bounty. The output is a growing public corpus of injection attacks and which guardrail
+phrasings survive them.
 
-## The loop
+Contract live on Studionet; frontend in `frontend/` (dark red-team console).
 
-1. **Plant** — `create_challenge` locks a bounty and defines the honeypot: a
-   task whose correct answer is `expected_verdict` (from a fixed
-   `allowed_verdicts` set), plus the `guardrail_text` being tested.
-2. **Attack** — `submit_attack` (with a small bond) feeds a payload into the
-   challenge's adjudication as *untrusted material under review*. The panel
-   rules under GenLayer consensus.
-3. **Referee** — deterministic code compares `verdict` to `expected_verdict`:
-   - **flipped** → the guardrail broke → the attacker takes the escalated
-     pot, `BROKEN`.
-   - **held** → the bond forfeits into the bounty (the pot grows), the
-     attempt is logged.
-4. **Settle** — first break wins. The payout pays at **finalization**.
+## What it is
 
-## Two invariants (docs-confirmed)
+- **AI is the target, code is the referee** - the panel only produces a verdict; a plain
+  `verdict == expected_verdict` decides the payout. The LLM never judges whether it was beaten.
+- **Two modes** - `VERDICT` (flip a classification to a wrong-but-valid answer) and `VAULT` (fool
+  an AI gatekeeper into `APPROVE` and drain the locked GEN - the native way to "attack a token
+  contract" on GenLayer).
+- **A win must survive to finality** - payouts emit `on="finalized"`, and GenLayer appeals re-run
+  the transaction with a larger validator set, so finality *is* the appeal-round test at no extra
+  code.
+- **Bonded attacks** - each attempt posts a bond; a miss forfeits it into the pot, so the reward
+  grows with every failed attack.
+- **A public breach log** - every attack and outcome is on-chain: the corpus is the product.
 
-- **AI is the target; code is the referee.** The panel only produces a
-  verdict; a plain `verdict == expected_verdict` decides the payout. The LLM
-  never judges whether it was beaten.
-- **A win must survive to finality.** Because GenLayer appeals re-run the
-  transaction with a fresh, larger validator set, a payout emitted
-  `on="finalized"` only lands if the attack survives appeals — **finality is
-  the appeal-round test**, at no extra code.
+## How it works
 
-## Why this only exists on GenLayer
+### For sponsors (defenders)
+1. Plant a challenge: a task with an indisputable correct answer from a fixed verdict set, plus the
+   `guardrail_text` you want tested - lock the bounty.
+2. In VAULT mode, supply only the authorized-release condition; the contract writes the gatekeeper
+   prompt itself.
+3. Watch attacks accumulate - each miss grows your pot and adds to the resilience record.
+4. Close the challenge to reclaim an unbroken bounty.
 
-GenLayer contracts carry a risk surface no other chain has: the LLM
-judgment itself. Gauntlet exploits that surface instead of working around
-it — and it is *the same consensus mechanism that is both the target and,
-via the deterministic wrapper, the harness*. The output is a growing public
-corpus of prompt-injection attacks and which guardrail phrasings survive
-them.
+### For attackers (breakers)
+1. Browse open challenges - "hottest targets" and a resilience meter per honeypot.
+2. Submit a payload with the attack bond; it enters adjudication as untrusted material under review.
+3. The panel rules under consensus; the referee compares the verdict to the expected answer.
+4. Flip it and the escalated pot is yours (`BROKEN`); miss and your bond joins the bounty.
+5. First break wins; the payout lands at finalization, so it must survive appeals.
 
-## Honest boundaries
+## Referee outcomes
 
-- Only works with an **indisputable** correct answer — vague ground truth
-  makes a "win" arguable. The UI enforces fixed-enum verdicts.
-- An off-list or garbage verdict is **not** a break (the guardrail wasn't
-  flipped to a wrong-but-valid answer).
-- A win reflects that *this guardrail + validator set* was beaten on that
-  transaction — it is evidence, not a universal claim about GenLayer.
+| Outcome | Meaning |
+|---|---|
+| Flipped | `panel_verdict != expected_verdict` - the guardrail broke; the attacker takes the escalated pot. |
+| Held | The verdict matched the expected answer - the bond forfeits into the bounty and the attempt is logged. |
+| Off-list | A garbage or out-of-enum verdict is **not** a break - the guardrail wasn't flipped to a wrong-but-valid answer. |
 
-## Frontend
+The referee is `verdict == expected_verdict`, deterministic code - the model is never asked whether
+it was beaten.
 
-Material 3 (Google Stitch DNA) flipped to a **dark red-team console**: live
-status strip, "hottest targets," a resilience meter per honeypot, a public
-**breach log** (the attack corpus), and a **leaderboard** of top breakers
-and most-resilient targets. Sora display + JetBrains Mono. `/new` carries a
-Verdict/Vault mode toggle with working presets.
+## Challenge lifecycle
 
-**Validated on-chain:** a strong guardrail held against classic jailbreaks
-(naive override, DAN roleplay, fake authority); a deliberately weak verdict
-honeypot and a lax vault gate were both breached, with the vault draining
-its full pot to the attacker's wallet. Strong defenses hold, sloppy ones pay
-out — exactly the lesson the arena exists to teach.
-
-```
-├── contracts/gauntlet.py    # the Intelligent Contract (referee + escrow)
-├── deploy/deployScript.ts   # genlayer-js deploy
-├── tests/direct/            # 19 deterministic tests (panel stubbed hold/break)
-├── frontend/                # Next.js 16 — dark security-console design
-├── gltest.config.yaml · pyproject.toml · requirements.txt
+```text
+OPEN -> BROKEN                         (first flip wins, pays at finality)
+   \-> CLOSED                          (sponsor reclaims an unbroken bounty)
 ```
 
-## Running locally
+| Status | What happens |
+|---|---|
+| `OPEN` | Bounty locked, accepting bonded attacks; each miss grows the pot. |
+| `BROKEN` | A verdict flip was refereed and paid; the guardrail is on record as beaten. |
+| `CLOSED` | The sponsor closed an unbroken challenge and reclaimed the bounty. |
+
+## GenLayer consensus functions
+
+| Function | Kind | What runs under consensus |
+|---|---|---|
+| `submit_attack` | write, payable | The payload enters adjudication as untrusted material under review; the panel produces a verdict under consensus, and deterministic code - not the model - decides the payout. |
+
+The consensus mechanism is simultaneously the *target* (the panel being attacked) and, via the
+deterministic wrapper, the *harness* - and finality doubles as the appeal-round test.
+
+## Contract
+
+| Field | Value |
+|---|---|
+| Network | GenLayer Studionet |
+| Chain ID | `61999` |
+| RPC | `https://studio.genlayer.com/api` |
+| Explorer | `https://explorer-studio.genlayer.com` |
+| Contract address | [`0x5F7645Cdb29fD43CE237606D0cD502fC3D72f88d`](https://studio.genlayer.com/?import-contract=0x5F7645Cdb29fD43CE237606D0cD502fC3D72f88d) |
+| Source | `contracts/gauntlet.py` |
+
+### Write methods
+
+| Method | Who | Payable | Notes |
+|---|---|---|---|
+| `create_challenge(title, brief, task, criteria, guardrail_text, expected_verdict, allowed_verdicts, mode)` | sponsor | bounty | Min 0.1 GEN; mode is `VERDICT` or `VAULT`; verdicts are a fixed enum. |
+| `submit_attack(challenge_id, payload)` | anyone | bond | 0.02 GEN bond; a miss grows the pot, a flip takes it. |
+| `close_challenge(challenge_id)` | sponsor | - | Reclaims an unbroken bounty. |
+
+### Read methods
+
+`get_protocol_stats`, `get_challenge`, `get_challenges`, `get_challenges_by_sponsor`,
+`get_attacks`, `get_attacks_by_attacker`
+
+### Consensus guarantees
+
+- **The LLM never scores itself** - a plain `verdict == expected_verdict` in deterministic code
+  decides every payout.
+- **Off-list verdicts don't pay** - only a flip to a wrong-but-*valid* answer counts as a break.
+- **Finality is the appeal test** - `emit_transfer(on="finalized")` means a win only lands if it
+  survives GenLayer's larger-validator-set appeal round.
+
+## Verified end-to-end
+
+Validated on-chain across both modes:
+
+```text
+strong guardrail  vs naive override / DAN roleplay / fake authority  -> HELD, bonds grew the pot
+weak verdict honeypot                                                 -> BROKEN, attacker paid
+lax vault gate    fooled into APPROVE                                 -> vault DRAINED to the attacker
+```
+
+> Strong defenses hold, sloppy ones pay out - exactly the lesson the arena exists to teach, and
+> every attack (win or miss) is written to the public breach log as attack corpus.
+
+**23 direct-mode tests** with the panel stubbed to hold or break, covering the referee logic, the
+bond-to-pot mechanics, and both modes.
+
+## Tech stack
+
+| Layer | Tech |
+|---|---|
+| Intelligent Contract | Python on GenVM (referee, escrow, both modes) |
+| Consensus | `gl.eq_principle` adjudication + a deterministic verdict wrapper |
+| Frontend | Next.js 16, Tailwind - dark red-team console (Material 3 DNA, Sora + JetBrains Mono) |
+| Web3 | GenLayerJS, EIP-6963 injected wallets |
+| Backend | None - the contract is the source of truth |
+
+## Repository
+
+```text
+contracts/gauntlet.py         The Intelligent Contract (referee + escrow)
+tests/direct/                 23 direct-mode tests, pytest
+deploy/deployScript.ts        genlayer-js deploy
+gltest.config.yaml            GenLayer test harness config
+frontend/                     Next.js app (arena, challenge room, breach log, leaderboard, /new)
+```
+
+## Getting started
 
 ```bash
-cd frontend && npm install
-# .env.local: NEXT_PUBLIC_CONTRACT_ADDRESS + Studionet RPC vars (see .env.Example)
+# contract tests
+python -m pytest tests/direct -q
+
+# frontend
+cd frontend
+cp .env.Example .env.local     # contract address + Studionet RPC
+npm install
 npm run dev -- -p 4800
 ```
 
-Tests: `python -m pytest tests/direct -q` from the repo root.
+## Security
 
-## Signed writes
+- The payout is bound to deterministic code, never to the model's opinion of the fight - the LLM
+  cannot be socially-engineered into declaring itself beaten.
+- Attack payloads enter adjudication strictly as material under review, never as instructions to
+  the referee.
+- Bonds deter spam and grow the pot, so griefing an honest challenge costs the griefer.
+- Contract writes are signed by the connected wallet's own EIP-1193 provider - never an implicit
+  `window.ethereum` fallback; `frontend/tests/signed-write.test.ts` proves the route.
+- Wallet payouts go through an empty `@gl.evm.contract_interface` proxy (`emit_transfer` at a
+  plain wallet strands value).
 
-Contract writes are signed by the **connected wallet's own EIP-1193 provider**. The
-contract wrapper resolves the injected provider (preferring MetaMask when several
-wallets are installed) and binds it into the genlayer-js client, so every transaction
-is signed by the wallet the user actually picked — never an implicit `window.ethereum`
-fallback that could be the wrong extension. A repository-level test
-(`frontend/tests/signed-write.test.ts`) proves the write path routes
-`eth_sendTransaction` through that provider with the correct `from`.
+## Design notes
+
+- Only works with an indisputable correct answer - vague ground truth makes a "win" arguable, so
+  the UI enforces fixed-enum verdicts.
+- A win is evidence that *this guardrail + this validator set* was beaten on that transaction - not
+  a universal claim about GenLayer.
+- GenLayer contracts carry a risk surface no other chain has, the LLM judgment itself; Gauntlet
+  exploits that surface instead of working around it, and turns the results into a public corpus.
+
+## Disclaimer
+
+Gauntlet is a hackathon project on a test network. Bounties and bonds are testnet GEN; do not use
+the contract for real security bounties without an audit.
