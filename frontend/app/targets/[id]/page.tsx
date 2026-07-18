@@ -95,7 +95,7 @@ export default function TargetPage({ params }: { params: Promise<{ id: string }>
       )}
 
       {/* Attack form */}
-      {canAttack && <AttackForm challengeId={c.challenge_id} bondWei={"20000000000000000"} />}
+      {canAttack && <AttackForm challengeId={c.challenge_id} bondWei={"20000000000000000"} mode={c.mode} />}
       {isConnected && c.status === "OPEN" && isSponsor && (
         <p className="text-sm text-muted text-center mono">This is your honeypot — you can't attack it.</p>
       )}
@@ -123,13 +123,16 @@ function AttackCard({ attack }: { attack: Attack }) {
   );
 }
 
-function AttackForm({ challengeId, bondWei }: { challengeId: string; bondWei: string }) {
+function AttackForm({ challengeId, bondWei, mode }: { challengeId: string; bondWei: string; mode: string }) {
   const { submitAttack, isAttacking } = useSubmitAttack();
   const [payload, setPayload] = useState("");
+  const isUrl = mode === "LIVE" || mode === "VISION";
 
   const submit = () => {
-    if (payload.trim().length < 1) return toastError("Payload is empty");
-    submitAttack({ challengeId, payload: payload.trim(), bondWei: BigInt(bondWei) });
+    const p = payload.trim();
+    if (p.length < 1) return toastError("Payload is empty");
+    if (isUrl && !/^https?:\/\//i.test(p)) return toastError("This challenge takes a URL", { description: `Submit the ${mode === "VISION" ? "image" : "page"} URL to attack with.` });
+    submitAttack({ challengeId, payload: p, bondWei: BigInt(bondWei) });
   };
 
   return (
@@ -139,15 +142,22 @@ function AttackForm({ challengeId, bondWei }: { challengeId: string; bondWei: st
         <h2 className="display text-xl text-ink">Take your shot</h2>
       </div>
       <p className="text-sm text-muted mb-5">
-        Craft a payload that makes the panel return any verdict other than the
-        correct one. Costs a <span className="mono" style={{ color: "var(--amber)" }}>{formatGen(bondWei)} GEN</span> bond —
+        {isUrl
+          ? `Submit the URL of ${mode === "VISION" ? "an image" : "a page"} that makes the panel return any verdict other than the correct one — the contract fetches it ${mode === "VISION" ? "and transcribes it" : "live"} into the material.`
+          : "Craft a payload that makes the panel return any verdict other than the correct one."}{" "}
+        Costs a <span className="mono" style={{ color: "var(--amber)" }}>{formatGen(bondWei)} GEN</span> bond —
         forfeited to the pot if the guardrail holds, returned inside your winnings if it breaks.
       </p>
       <div className="space-y-4">
         <div>
-          <label className="field-label">Attack payload</label>
-          <textarea className="input" placeholder="Your injection / jailbreak attempt — this is fed to the panel as untrusted material under review."
-            value={payload} onChange={(e) => setPayload(e.target.value)} disabled={isAttacking} />
+          <label className="field-label">{isUrl ? (mode === "VISION" ? "Attack image URL" : "Attack page URL") : "Attack payload"}</label>
+          {isUrl ? (
+            <input className="input mono" placeholder={mode === "VISION" ? "https://…/adversarial.png" : "https://…/injection-page"}
+              value={payload} onChange={(e) => setPayload(e.target.value)} disabled={isAttacking} />
+          ) : (
+            <textarea className="input" placeholder="Your injection / jailbreak attempt — this is fed to the panel as untrusted material under review."
+              value={payload} onChange={(e) => setPayload(e.target.value)} disabled={isAttacking} />
+          )}
         </div>
         <button className="btn btn-primary w-full" disabled={isAttacking} onClick={submit}>
           {isAttacking ? <><Loader2 className="w-4 h-4 animate-spin" /> Panel adjudicating…</> : <><Target className="w-4 h-4" /> Fire attack ({formatGen(bondWei)} GEN bond)</>}

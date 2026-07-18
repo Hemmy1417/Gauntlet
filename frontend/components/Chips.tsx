@@ -1,9 +1,9 @@
 import type { ChallengeStatus, ChallengeMode } from "@/lib/contracts/types";
 
 export function ModeChip({ mode }: { mode: ChallengeMode }) {
-  return mode === "VAULT"
-    ? <span className="chip chip-amber">Vault</span>
-    : <span className="chip chip-closed">Verdict</span>;
+  const label = mode === "VAULT" ? "Vault" : mode === "LIVE" ? "Live page" : mode === "VISION" ? "Vision" : "Verdict";
+  const cls = mode === "VAULT" ? "chip-amber" : "chip-closed";
+  return <span className={`chip ${cls}`}>{label}</span>;
 }
 
 export function StatusChip({ status }: { status: ChallengeStatus }) {

@@ -19,9 +19,11 @@ Contract live on Studionet; frontend in `frontend/` (dark red-team console).
 
 - **AI is the target, code is the referee** - the panel only produces a verdict; a plain
   `verdict == expected_verdict` decides the payout. The LLM never judges whether it was beaten.
-- **Two modes** - `VERDICT` (flip a classification to a wrong-but-valid answer) and `VAULT` (fool
-  an AI gatekeeper into `APPROVE` and drain the locked GEN - the native way to "attack a token
-  contract" on GenLayer).
+- **Four attack surfaces** - `VERDICT` (flip a classification on inline text), `VAULT` (fool an AI
+  gatekeeper into `APPROVE` and drain the locked GEN), `LIVE` (the attacker submits a **URL** the
+  contract fetches - indirect/second-order injection, the threat an agent hits while browsing), and
+  `VISION` (the attacker submits an **image URL** the contract renders and transcribes on-chain -
+  visual / text-in-image injection). One deterministic referee across all four.
 - **A win must survive to finality** - payouts emit `on="finalized"`, and GenLayer appeals re-run
   the transaction with a larger validator set, so finality *is* the appeal-round test at no extra
   code.
@@ -94,15 +96,15 @@ deterministic wrapper, the *harness* - and finality doubles as the appeal-round 
 | Chain ID | `61999` |
 | RPC | `https://studio.genlayer.com/api` |
 | Explorer | `https://explorer-studio.genlayer.com` |
-| Contract address | [`0x6207C2b7DbAe3a8DA4B73dF9Ba2803047a854FAb`](https://studio.genlayer.com/?import-contract=0x6207C2b7DbAe3a8DA4B73dF9Ba2803047a854FAb) |
+| Contract address | [`0x82622b3dC829d834B39f401FbA55d07E2D10499f`](https://studio.genlayer.com/?import-contract=0x82622b3dC829d834B39f401FbA55d07E2D10499f) |
 | Source | `contracts/gauntlet.py` |
 
 ### Write methods
 
 | Method | Who | Payable | Notes |
 |---|---|---|---|
-| `create_challenge(title, brief, task, criteria, guardrail_text, expected_verdict, allowed_verdicts, mode)` | sponsor | bounty | Min 0.1 GEN; mode is `VERDICT` or `VAULT`; verdicts are a fixed enum. |
-| `submit_attack(challenge_id, payload)` | anyone | bond | 0.02 GEN bond; a miss grows the pot, a flip takes it. |
+| `create_challenge(title, brief, task, criteria, guardrail_text, expected_verdict, allowed_verdicts, mode)` | sponsor | bounty | Min 0.1 GEN; mode is `VERDICT` / `VAULT` / `LIVE` / `VISION`; verdicts are a fixed enum. |
+| `submit_attack(challenge_id, payload)` | anyone | bond | 0.02 GEN bond; a miss grows the pot, a flip takes it. In `LIVE`/`VISION` the payload is a **URL** the contract fetches. |
 | `preview_guardrail(task, guardrail_text, expected_verdict, allowed_verdicts, mode)` | anyone | - | Advisory red-team of a **draft** guardrail before locking a bounty; runs one consensus round, stores nothing, moves no funds. |
 | `close_challenge(challenge_id)` | sponsor | - | Reclaims an unbroken bounty. |
 
@@ -117,6 +119,9 @@ deterministic wrapper, the *harness* - and finality doubles as the appeal-round 
   decides every payout.
 - **Off-list verdicts don't pay** - only a flip to a wrong-but-*valid* answer counts as a break, so
   an unparseable or empty panel output (an LLM outage) rules HELD and can never pay the attacker.
+- **URL modes fail safe** - in `LIVE`/`VISION` the contract fetches the attacker's URL inside the
+  consensus block; an unreachable page or image degrades to an explicit no-evidence marker, which a
+  sound honeypot never rules a break. An infra failure can never drain a bounty.
 - **No contract-level injection floor - by design** - unlike the sibling contracts, Gauntlet
   deliberately adds *no* anti-injection guardrail of its own. The sponsor's `guardrail_text` is the
   entire defense under test; a contract that hardened every honeypot would make weak guardrails
@@ -138,8 +143,11 @@ lax vault gate    fooled into APPROVE                                 -> vault D
 > Strong defenses hold, sloppy ones pay out - exactly the lesson the arena exists to teach, and
 > every attack (win or miss) is written to the public breach log as attack corpus.
 
-**28 direct-mode tests** with the panel stubbed to hold or break, covering the referee logic, the
-bond-to-pot mechanics, both modes, and the advisory guardrail preview (stores/moves nothing).
+**32 direct-mode tests** with the panel stubbed to hold or break, covering the referee logic, the
+bond-to-pot mechanics, all four modes (including the `LIVE`/`VISION` URL fetch + URL validation),
+and the advisory guardrail preview (stores/moves nothing). The `VERDICT`/`VAULT` paths are also
+live-verified on-chain (above); the `LIVE`/`VISION` fetch paths are direct-tested and fail-safe,
+pending a live wallet run.
 
 ## Tech stack
 
@@ -155,7 +163,7 @@ bond-to-pot mechanics, both modes, and the advisory guardrail preview (stores/mo
 
 ```text
 contracts/gauntlet.py         The Intelligent Contract (referee + escrow)
-tests/direct/                 28 direct-mode tests, pytest
+tests/direct/                 32 direct-mode tests, pytest
 deploy/deployScript.ts        genlayer-js deploy
 gltest.config.yaml            GenLayer test harness config
 frontend/                     Next.js app (arena, challenge room, breach log, leaderboard, /new)
@@ -194,6 +202,21 @@ npm run dev -- -p 4800
   a universal claim about GenLayer.
 - GenLayer contracts carry a risk surface no other chain has, the LLM judgment itself; Gauntlet
   exploits that surface instead of working around it, and turns the results into a public corpus.
+- The `LIVE`/`VISION` fetch happens **inside** the consensus block, so the fetched page or
+  transcribed image is agreed under the same equivalence principle that decides the verdict.
+
+## Not built - GenLayer platform limits
+
+Two proposed features were deliberately left out because current GenLayer doesn't support them, and
+faking them would weaken the trust model:
+
+- **Contract-driven appeal escalation.** GenLayer's appeals are *party-triggered and external*, each
+  round doubling the validator set; a contract cannot force its own re-execution under a larger
+  panel. And it isn't needed here - the `on="finalized"` payout already means every break must
+  survive the appeal round to pay, so "confirmed by a bigger panel" is already the guarantee.
+- **On-chain validator/model transparency.** There is no runtime API for a contract to read *which*
+  validators or models ruled a transaction, so Gauntlet can't record "which model fell." If GenLayer
+  exposes that metadata later, it drops straight into the breach log.
 
 ## Disclaimer
 

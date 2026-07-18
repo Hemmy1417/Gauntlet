@@ -3,7 +3,7 @@
 
 export type ChallengeStatus = "OPEN" | "BROKEN" | "CLOSED";
 
-export type ChallengeMode = "VERDICT" | "VAULT";
+export type ChallengeMode = "VERDICT" | "VAULT" | "LIVE" | "VISION";
 
 export interface Challenge {
   challenge_id: string;

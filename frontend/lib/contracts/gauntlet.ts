@@ -85,7 +85,7 @@ class Gauntlet {
       ...c,
       challenge_id:     String(c.challenge_id ?? ""),
       sponsor:          String(c.sponsor ?? ""),
-      mode:             (String(c.mode ?? "VERDICT").toUpperCase() === "VAULT" ? "VAULT" : "VERDICT"),
+      mode:             ((["VERDICT", "VAULT", "LIVE", "VISION"].includes(String(c.mode ?? "").toUpperCase()) ? String(c.mode).toUpperCase() : "VERDICT") as Challenge["mode"]),
       allowed_verdicts: Array.isArray(c.allowed_verdicts) ? c.allowed_verdicts.map(String) : [],
       bounty_wei:       String(c.bounty_wei ?? "0"),
       attempts:         Number(c.attempts ?? 0),
@@ -158,7 +158,7 @@ class Gauntlet {
   async createChallenge(args: {
     title: string; brief: string; task: string; criteria: string;
     guardrailText: string; expectedVerdict: string; allowedVerdicts: string[];
-    mode?: "VERDICT" | "VAULT"; bountyWei: bigint;
+    mode?: "VERDICT" | "VAULT" | "LIVE" | "VISION"; bountyWei: bigint;
   }) {
     return this.write(
       "create_challenge",
@@ -182,7 +182,7 @@ class Gauntlet {
   // just yields null and the UI asks the user to retry — it can't break).
   async previewGuardrail(args: {
     task: string; guardrailText: string; expectedVerdict: string;
-    allowedVerdicts: string[]; mode?: "VERDICT" | "VAULT";
+    allowedVerdicts: string[]; mode?: "VERDICT" | "VAULT" | "LIVE" | "VISION";
   }): Promise<GuardrailPreview | null> {
     const { receipt } = await this.write("preview_guardrail", [
       args.task, args.guardrailText, args.expectedVerdict,

@@ -115,7 +115,7 @@ export function useCreateChallenge() {
   const m = useGauntletMutation<{
     title: string; brief: string; task: string; criteria: string;
     guardrailText: string; expectedVerdict: string; allowedVerdicts: string[];
-    mode?: "VERDICT" | "VAULT"; bountyWei: bigint;
+    mode?: "VERDICT" | "VAULT" | "LIVE" | "VISION"; bountyWei: bigint;
   }>({
     run: (c, a) => c.createChallenge(a),
     successTitle: (a) => (a.mode === "VAULT" ? "Vault sealed" : "Honeypot planted"),
@@ -154,7 +154,7 @@ export function usePreviewGuardrail() {
 
   const runPreview = async (args: {
     task: string; guardrailText: string; expectedVerdict: string;
-    allowedVerdicts: string[]; mode?: "VERDICT" | "VAULT";
+    allowedVerdicts: string[]; mode?: "VERDICT" | "VAULT" | "LIVE" | "VISION";
   }) => {
     if (!contract) { error("Contract not configured"); return; }
     setIsPreviewing(true);
