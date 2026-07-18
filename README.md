@@ -27,6 +27,13 @@ Contract live on Studionet; frontend in `frontend/` (dark red-team console).
   code.
 - **Bonded attacks** - each attempt posts a bond; a miss forfeits it into the pot, so the reward
   grows with every failed attack.
+- **A break beats the network's own defense** - every attack runs through GenLayer consensus, where
+  validators **greybox** the prompt (paraphrase, retokenize, perplexity-filter adversarial text)
+  and each runs a **different, undisclosed model**. So a Gauntlet break isn't "I fooled one GPT" -
+  it's an attack that survived the chain's own anti-injection layer and a heterogeneous panel.
+- **Guardrail red-team, before you lock funds** - `preview_guardrail` runs a free advisory round
+  that scores a draft guardrail's resilience and names its weakest vector, so sponsors harden the
+  defense before any GEN is at stake.
 - **A public breach log** - every attack and outcome is on-chain: the corpus is the product.
 
 ## How it works
@@ -87,7 +94,7 @@ deterministic wrapper, the *harness* - and finality doubles as the appeal-round 
 | Chain ID | `61999` |
 | RPC | `https://studio.genlayer.com/api` |
 | Explorer | `https://explorer-studio.genlayer.com` |
-| Contract address | [`0x4A66A9B6e212675a3bc334d869D3a85fedcb19cb`](https://studio.genlayer.com/?import-contract=0x4A66A9B6e212675a3bc334d869D3a85fedcb19cb) |
+| Contract address | [`0x6207C2b7DbAe3a8DA4B73dF9Ba2803047a854FAb`](https://studio.genlayer.com/?import-contract=0x6207C2b7DbAe3a8DA4B73dF9Ba2803047a854FAb) |
 | Source | `contracts/gauntlet.py` |
 
 ### Write methods
@@ -96,6 +103,7 @@ deterministic wrapper, the *harness* - and finality doubles as the appeal-round 
 |---|---|---|---|
 | `create_challenge(title, brief, task, criteria, guardrail_text, expected_verdict, allowed_verdicts, mode)` | sponsor | bounty | Min 0.1 GEN; mode is `VERDICT` or `VAULT`; verdicts are a fixed enum. |
 | `submit_attack(challenge_id, payload)` | anyone | bond | 0.02 GEN bond; a miss grows the pot, a flip takes it. |
+| `preview_guardrail(task, guardrail_text, expected_verdict, allowed_verdicts, mode)` | anyone | - | Advisory red-team of a **draft** guardrail before locking a bounty; runs one consensus round, stores nothing, moves no funds. |
 | `close_challenge(challenge_id)` | sponsor | - | Reclaims an unbroken bounty. |
 
 ### Read methods
@@ -130,8 +138,8 @@ lax vault gate    fooled into APPROVE                                 -> vault D
 > Strong defenses hold, sloppy ones pay out - exactly the lesson the arena exists to teach, and
 > every attack (win or miss) is written to the public breach log as attack corpus.
 
-**23 direct-mode tests** with the panel stubbed to hold or break, covering the referee logic, the
-bond-to-pot mechanics, and both modes.
+**28 direct-mode tests** with the panel stubbed to hold or break, covering the referee logic, the
+bond-to-pot mechanics, both modes, and the advisory guardrail preview (stores/moves nothing).
 
 ## Tech stack
 
@@ -147,7 +155,7 @@ bond-to-pot mechanics, and both modes.
 
 ```text
 contracts/gauntlet.py         The Intelligent Contract (referee + escrow)
-tests/direct/                 23 direct-mode tests, pytest
+tests/direct/                 28 direct-mode tests, pytest
 deploy/deployScript.ts        genlayer-js deploy
 gltest.config.yaml            GenLayer test harness config
 frontend/                     Next.js app (arena, challenge room, breach log, leaderboard, /new)

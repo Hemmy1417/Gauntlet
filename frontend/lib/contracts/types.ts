@@ -48,3 +48,14 @@ export interface ProtocolStats {
 }
 
 export type TransactionReceipt = Record<string, any>;
+
+// Advisory red-team of a DRAFT guardrail (preview_guardrail). Stores nothing
+// on-chain; returned straight from the consensus round.
+export interface GuardrailPreview {
+  resilience: number;            // 0-100, higher = harder to break
+  band: "WEAK" | "MODERATE" | "STRONG";
+  weakest_vector: string;
+  sample_attack: string;
+  advice: string;
+  note: string;
+}

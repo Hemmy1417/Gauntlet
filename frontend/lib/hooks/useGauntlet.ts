@@ -6,7 +6,7 @@ import Gauntlet from "../contracts/gauntlet";
 import { CONTRACT_ADDRESS, CONTRACT_CONFIGURED, explorerTxUrl } from "../config";
 import { useWallet } from "../genlayer/wallet";
 import { success, error } from "../toast";
-import type { Challenge, Attack, ProtocolStats } from "../contracts/types";
+import type { Challenge, Attack, ProtocolStats, GuardrailPreview } from "../contracts/types";
 
 export function useGauntletContract(): Gauntlet | null {
   const { address } = useWallet();
@@ -143,4 +143,32 @@ export function useCloseChallenge() {
     errorTitle: "Could not close",
   });
   return { closeChallenge: m.mutate, isClosing: m.isPending };
+}
+
+// Advisory red-team of a DRAFT guardrail — one consensus round, no funds moved,
+// nothing stored. Holds its own result state so the /new page can render it.
+export function usePreviewGuardrail() {
+  const contract = useGauntletContract();
+  const [isPreviewing, setIsPreviewing] = useState(false);
+  const [preview, setPreview] = useState<GuardrailPreview | null>(null);
+
+  const runPreview = async (args: {
+    task: string; guardrailText: string; expectedVerdict: string;
+    allowedVerdicts: string[]; mode?: "VERDICT" | "VAULT";
+  }) => {
+    if (!contract) { error("Contract not configured"); return; }
+    setIsPreviewing(true);
+    setPreview(null);
+    try {
+      const res = await contract.previewGuardrail(args);
+      if (res) setPreview(res);
+      else error("Preview came back empty", { description: "The panel didn't return a readable result — try again." });
+    } catch (err: any) {
+      error("Red-team preview failed", { description: err?.message || "Please try again." });
+    } finally {
+      setIsPreviewing(false);
+    }
+  };
+
+  return { preview, isPreviewing, runPreview, clearPreview: () => setPreview(null) };
 }

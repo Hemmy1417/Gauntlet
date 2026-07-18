@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Bug, Plus, X, Vault, ShieldAlert } from "lucide-react";
-import { useCreateChallenge } from "@/lib/hooks/useGauntlet";
+import { Loader2, Bug, Plus, X, Vault, ShieldAlert, Radar } from "lucide-react";
+import { useCreateChallenge, usePreviewGuardrail } from "@/lib/hooks/useGauntlet";
 import { useWallet } from "@/lib/genlayer/wallet";
 import { parseGen } from "@/lib/utils";
 import { HowTo } from "@/components/HowTo";
@@ -27,6 +27,7 @@ export default function NewChallengePage() {
   const router = useRouter();
   const { isConnected } = useWallet();
   const { createChallenge, isCreating } = useCreateChallenge();
+  const { preview, isPreviewing, runPreview, clearPreview } = usePreviewGuardrail();
 
   const [mode, setMode] = useState<"VERDICT" | "VAULT">("VERDICT");
   const [title, setTitle] = useState(VERDICT_PRESET.title);
@@ -40,6 +41,7 @@ export default function NewChallengePage() {
 
   const switchMode = (mt: "VERDICT" | "VAULT") => {
     setMode(mt);
+    clearPreview();
     if (mt === "VAULT") {
       setTitle(VAULT_PRESET.title); setBrief(VAULT_PRESET.brief); setGuardrail(VAULT_PRESET.guardrail);
     } else {
@@ -76,6 +78,26 @@ export default function NewChallengePage() {
       { onSuccess: () => router.push("/targets") } as any,
     );
   };
+
+  // Red-team the CURRENT draft guardrail — a free advisory consensus round,
+  // no bounty locked, nothing stored. Uses the same task/verdicts the real
+  // challenge would (VAULT auto-fills them in the contract).
+  const runGuardrailPreview = () => {
+    if (guardrail.trim().length < 20) {
+      return toastError("Guardrail too short", { description: "At least 20 characters to red-team." });
+    }
+    if (isVault) {
+      return runPreview({ task: "", guardrailText: guardrail.trim(), expectedVerdict: "", allowedVerdicts: [], mode: "VAULT" });
+    }
+    const vs = verdicts.map((v) => v.trim().toUpperCase()).filter(Boolean);
+    if (task.trim().length < 20) return toastError("Task too short", { description: "State the decision the panel makes first." });
+    if (vs.length < 2) return toastError("Need at least 2 verdicts");
+    if (!vs.includes(expected.trim().toUpperCase())) return toastError("Expected verdict must be in the list");
+    runPreview({ task: task.trim(), guardrailText: guardrail.trim(), expectedVerdict: expected.trim().toUpperCase(), allowedVerdicts: vs, mode: "VERDICT" });
+  };
+
+  const bandColor = preview?.band === "STRONG" ? "var(--ok, #4ade80)"
+    : preview?.band === "MODERATE" ? "var(--warn, #fbbf24)" : "var(--breach)";
 
   const isVault = mode === "VAULT";
 
@@ -135,6 +157,47 @@ export default function NewChallengePage() {
             {isVault ? "This is the only defense. The contract writes the gatekeeper prompt around it; attackers try to make the gate APPROVE anyway."
                      : "This is the defense being attacked. Attacker payloads try to defeat it."}
           </p>
+
+          {/* Red-team preview — advisory, free, locks no funds */}
+          <div className="mt-3">
+            <button type="button" className="btn btn-ghost !h-9 text-xs" disabled={!isConnected || isPreviewing || isCreating} onClick={runGuardrailPreview}>
+              {isPreviewing ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Red-teaming the guardrail…</>
+                            : <><Radar className="w-3.5 h-3.5" /> Red-team this guardrail (free)</>}
+            </button>
+            {!isConnected && <span className="text-[11px] text-muted ml-2 mono">connect a wallet to preview</span>}
+          </div>
+
+          {preview && (
+            <div className="card p-5 mt-3 space-y-3" style={{ borderColor: bandColor }}>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-baseline gap-2">
+                  <span className="display text-2xl text-ink">{preview.resilience}</span>
+                  <span className="text-xs text-muted mono">/100 resilience</span>
+                </div>
+                <span className="mono text-xs px-2 py-1 rounded" style={{ color: bandColor, border: `1px solid ${bandColor}` }}>{preview.band}</span>
+              </div>
+              <div className="h-1.5 w-full rounded overflow-hidden" style={{ background: "var(--surface, rgba(255,255,255,0.06))" }}>
+                <div style={{ width: `${preview.resilience}%`, background: bandColor, height: "100%" }} />
+              </div>
+              <div>
+                <div className="field-label !mb-1">Weakest vector</div>
+                <p className="text-sm text-ink">{preview.weakest_vector || "—"}</p>
+              </div>
+              {preview.sample_attack && (
+                <div>
+                  <div className="field-label !mb-1">A payload it might fall to</div>
+                  <p className="mono text-xs text-muted leading-relaxed border-l-2 pl-3" style={{ borderColor: bandColor }}>{preview.sample_attack}</p>
+                </div>
+              )}
+              {preview.advice && (
+                <div>
+                  <div className="field-label !mb-1">Harden it</div>
+                  <p className="text-sm text-ink">{preview.advice}</p>
+                </div>
+              )}
+              <p className="text-[11px] text-muted">{preview.note}</p>
+            </div>
+          )}
         </div>
 
         {!isVault && (

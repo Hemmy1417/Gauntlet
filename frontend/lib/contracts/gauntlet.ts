@@ -1,6 +1,6 @@
 import { createClient } from "genlayer-js";
 import { studionet } from "genlayer-js/chains";
-import type { Challenge, Attack, ProtocolStats, TransactionReceipt } from "./types";
+import type { Challenge, Attack, ProtocolStats, TransactionReceipt, GuardrailPreview } from "./types";
 import { CONTRACT_ADDRESS } from "../config";
 
 // Resolve the CONNECTED wallet's EIP-1193 provider so writes are signed by the
@@ -174,6 +174,56 @@ class Gauntlet {
 
   async closeChallenge(challengeId: string) {
     return this.write("close_challenge", [challengeId]);
+  }
+
+  // Advisory: red-team a DRAFT guardrail before locking a bounty. Non-payable,
+  // stores nothing on-chain — the result comes back in the consensus receipt,
+  // so we dig it out of the leader receipt (defensively; any shape mismatch
+  // just yields null and the UI asks the user to retry — it can't break).
+  async previewGuardrail(args: {
+    task: string; guardrailText: string; expectedVerdict: string;
+    allowedVerdicts: string[]; mode?: "VERDICT" | "VAULT";
+  }): Promise<GuardrailPreview | null> {
+    const { receipt } = await this.write("preview_guardrail", [
+      args.task, args.guardrailText, args.expectedVerdict,
+      args.allowedVerdicts, args.mode ?? "VERDICT",
+    ]);
+    return this.extractPreview(receipt);
+  }
+
+  private extractPreview(receipt: any): GuardrailPreview | null {
+    // Walk the receipt for any readable payload that parses to an object
+    // carrying a `resilience` key — robust to leader-receipt shape drift.
+    const found: any[] = [];
+    const walk = (o: any, depth = 0) => {
+      if (!o || depth > 8) return;
+      if (typeof o === "string") {
+        try {
+          let v: any = JSON.parse(o);
+          if (typeof v === "string") { try { v = JSON.parse(v); } catch { /* single-encoded */ } }
+          if (v && typeof v === "object" && "resilience" in v) found.push(v);
+        } catch { /* not JSON */ }
+        return;
+      }
+      if (typeof o === "object") {
+        if ("resilience" in o && "band" in o) found.push(o);
+        Object.values(o).forEach((v) => walk(v, depth + 1));
+      }
+    };
+    walk(receipt);
+    const p = found[0];
+    if (!p) return null;
+    const score = Math.max(0, Math.min(100, Number(p.resilience ?? 0)));
+    const band = (["WEAK", "MODERATE", "STRONG"] as const).includes(p.band)
+      ? p.band : score >= 75 ? "STRONG" : score >= 45 ? "MODERATE" : "WEAK";
+    return {
+      resilience: score,
+      band,
+      weakest_vector: String(p.weakest_vector ?? ""),
+      sample_attack: String(p.sample_attack ?? ""),
+      advice: String(p.advice ?? ""),
+      note: String(p.note ?? "Advisory red-team preview — not a guarantee."),
+    };
   }
 }
 
