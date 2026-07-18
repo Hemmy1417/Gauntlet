@@ -134,7 +134,11 @@ class Gauntlet(gl.Contract):
 
     def _pay(self, to: str, amount_wei: int) -> None:
         if amount_wei > 0:
-            _Payee(Address(to)).emit_transfer(value=u256(amount_wei))
+            # on="finalized" is load-bearing, not decoration: a break only pays
+            # after the transfer survives to finality, which is the appeal round
+            # re-run under a larger validator set. Emitting at acceptance would
+            # let an attacker collect before the win has to survive appeals.
+            _Payee(Address(to)).emit_transfer(value=u256(amount_wei), on="finalized")
 
     def _parse_panel_json(self, raw: str) -> dict:
         text = raw.strip()

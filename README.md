@@ -87,7 +87,7 @@ deterministic wrapper, the *harness* - and finality doubles as the appeal-round 
 | Chain ID | `61999` |
 | RPC | `https://studio.genlayer.com/api` |
 | Explorer | `https://explorer-studio.genlayer.com` |
-| Contract address | [`0x5F7645Cdb29fD43CE237606D0cD502fC3D72f88d`](https://studio.genlayer.com/?import-contract=0x5F7645Cdb29fD43CE237606D0cD502fC3D72f88d) |
+| Contract address | [`0x4A66A9B6e212675a3bc334d869D3a85fedcb19cb`](https://studio.genlayer.com/?import-contract=0x4A66A9B6e212675a3bc334d869D3a85fedcb19cb) |
 | Source | `contracts/gauntlet.py` |
 
 ### Write methods
@@ -107,9 +107,15 @@ deterministic wrapper, the *harness* - and finality doubles as the appeal-round 
 
 - **The LLM never scores itself** - a plain `verdict == expected_verdict` in deterministic code
   decides every payout.
-- **Off-list verdicts don't pay** - only a flip to a wrong-but-*valid* answer counts as a break.
-- **Finality is the appeal test** - `emit_transfer(on="finalized")` means a win only lands if it
-  survives GenLayer's larger-validator-set appeal round.
+- **Off-list verdicts don't pay** - only a flip to a wrong-but-*valid* answer counts as a break, so
+  an unparseable or empty panel output (an LLM outage) rules HELD and can never pay the attacker.
+- **No contract-level injection floor - by design** - unlike the sibling contracts, Gauntlet
+  deliberately adds *no* anti-injection guardrail of its own. The sponsor's `guardrail_text` is the
+  entire defense under test; a contract that hardened every honeypot would make weak guardrails
+  unbreakable and defeat the arena. The attacker's payload still enters strictly as material under
+  review, never as instructions to the referee - which is deterministic code, not the model.
+- **Finality is the appeal test** - the payout uses `emit_transfer(on="finalized")`, so a win only
+  lands if it survives GenLayer's larger-validator-set appeal round.
 
 ## Verified end-to-end
 
