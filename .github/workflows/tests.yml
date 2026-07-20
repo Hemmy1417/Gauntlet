@@ -30,13 +30,15 @@ jobs:
       - name: genvm-lint check (lint + semantic validate)
         run: genvm-lint check contracts/gauntlet.py --json
 
-  # Real GenVM + full leader/validator consensus via local GLSim.
-  # continue-on-error until the first Linux run confirms GLSim can provision the
-  # GenVM runtime here (on Windows it 404s fetching genvm-universal.tar.xz, which
-  # the release doesn't publish; Linux should pick genvm-linux-amd64 instead).
-  # Once a run passes, delete the `continue-on-error` line to make it required.
+  # Real GenVM + full leader/validator consensus against StudioNet (gasless).
+  # Local GLSim is a dead end for now: genlayer-test[sim] 0.29.2 fetches
+  # `genvm-universal.tar.xz`, which the current genvm release doesn't publish
+  # (any OS), so its runtime never provisions — confirmed failing on Ubuntu CI.
+  # StudioNet runs the real GenVM directly with no runtime download.
+  # Kept `continue-on-error` while we confirm StudioNet finalizes reliably here
+  # (it has intermittent new-deploy indexing lag); drop the flag once green.
   integration:
-    name: gltest integration (GLSim)
+    name: gltest integration (StudioNet)
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
@@ -46,16 +48,8 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install (with GLSim)
-        run: python -m pip install --upgrade pip pytest "genlayer-test[sim]"
+      - name: Install
+        run: python -m pip install --upgrade pip pytest genlayer-test
 
-      - name: Start GLSim (5 validators)
-        run: |
-          glsim --port 4000 --validators 5 --no-browser &
-          for i in $(seq 1 30); do
-            if curl -sf -o /dev/null http://127.0.0.1:4000; then echo "GLSim up"; break; fi
-            sleep 1
-          done
-
-      - name: gltest integration (exclude slow real-LLM tests)
-        run: gltest tests/integration -v -s --network localnet -m "not slow"
+      - name: gltest integration on StudioNet (exclude slow real-LLM tests)
+        run: gltest tests/integration -v -s --network studionet -m "not slow"
