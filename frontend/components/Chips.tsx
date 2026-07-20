@@ -18,6 +18,21 @@ export function OutcomeChip({ broke }: { broke: boolean }) {
     : <span className="chip chip-held">Held</span>;
 }
 
+/** An attack's submitted payload, labelled by mode. In LIVE/VISION the payload
+ *  is a URL the contract fetched — shown as selectable text (not a live link:
+ *  a red-team arena shouldn't turn attacker-controlled URLs into one-click nav). */
+export function AttackPayload({ mode, payload }: { mode: ChallengeMode; payload: string }) {
+  const label = mode === "VISION" ? "attack image" : mode === "LIVE" ? "target page" : "payload";
+  const isUrl = (mode === "LIVE" || mode === "VISION") && /^https?:\/\//i.test(payload);
+  return (
+    <div className="rounded-lg p-3 font-mono text-xs" style={{ background: "var(--surface-dim)" }}>
+      <span className="text-muted">{label} › </span>
+      <span className={`text-soft ${isUrl ? "break-all" : "break-words"}`}>{payload}</span>
+      {isUrl && <span className="chip chip-closed ml-2" style={{ fontSize: "9px", verticalAlign: "middle" }}>URL · fetched on-chain</span>}
+    </div>
+  );
+}
+
 /** Resilience = attempts survived. Higher = tougher honeypot. */
 export function ResilienceMeter({ attempts, broken }: { attempts: number; broken: boolean }) {
   const pct = Math.min(100, 12 + attempts * 12);

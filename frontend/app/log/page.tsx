@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Loader2, ScrollText } from "lucide-react";
 import { useChallenges, useAttacks } from "@/lib/hooks/useGauntlet";
 import { shortAddr } from "@/lib/utils";
-import { OutcomeChip } from "@/components/Chips";
+import { OutcomeChip, ModeChip, AttackPayload } from "@/components/Chips";
 import { HowTo } from "@/components/HowTo";
 import type { Challenge } from "@/lib/contracts/types";
 
@@ -49,10 +49,13 @@ function ChallengeLog({ challenge }: { challenge: Challenge }) {
   if (!attacks || attacks.length === 0) return null;
   return (
     <div>
-      <Link href={`/targets/${challenge.challenge_id}`} className="flex items-baseline gap-2 mb-2 hover:underline">
-        <span className="mono text-xs text-muted">#{challenge.challenge_id}</span>
-        <span className="display text-base text-ink">{challenge.title}</span>
-      </Link>
+      <div className="flex items-center gap-2 mb-2 flex-wrap">
+        <Link href={`/targets/${challenge.challenge_id}`} className="flex items-baseline gap-2 hover:underline">
+          <span className="mono text-xs text-muted">#{challenge.challenge_id}</span>
+          <span className="display text-base text-ink">{challenge.title}</span>
+        </Link>
+        <ModeChip mode={challenge.mode} />
+      </div>
       <div className="space-y-2">
         {attacks.slice().reverse().map((a) => (
           <div key={a.seq} className={`card p-4 ${a.broke ? "card-breach" : ""}`}>
@@ -60,7 +63,7 @@ function ChallengeLog({ challenge }: { challenge: Challenge }) {
               <OutcomeChip broke={a.broke} />
               <span className="mono text-[11px] text-muted ml-auto">{shortAddr(a.attacker)} → forced <span style={{ color: a.broke ? "var(--breach)" : "var(--defended)" }}>{a.verdict}</span></span>
             </div>
-            <div className="font-mono text-xs text-soft break-words"><span className="text-muted">› </span>{a.payload}</div>
+            <AttackPayload mode={challenge.mode} payload={a.payload} />
           </div>
         ))}
       </div>

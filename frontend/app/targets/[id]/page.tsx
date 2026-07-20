@@ -8,9 +8,9 @@ import {
 } from "@/lib/hooks/useGauntlet";
 import { useWallet } from "@/lib/genlayer/wallet";
 import { formatGen, shortAddr } from "@/lib/utils";
-import { StatusChip, OutcomeChip, ModeChip, ResilienceMeter } from "@/components/Chips";
+import { StatusChip, OutcomeChip, ModeChip, ResilienceMeter, AttackPayload } from "@/components/Chips";
 import { error as toastError } from "@/lib/toast";
-import type { Attack } from "@/lib/contracts/types";
+import type { Attack, ChallengeMode } from "@/lib/contracts/types";
 
 export default function TargetPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -59,6 +59,11 @@ export default function TargetPage({ params }: { params: Promise<{ id: string }>
 
         {/* The honeypot spec */}
         <div className="mt-5 rounded-lg p-4 font-mono text-xs leading-relaxed" style={{ background: "var(--surface-dim)", border: "1px solid var(--line)" }}>
+          {(c.mode === "LIVE" || c.mode === "VISION") && (
+            <p className="mb-3 text-[11px]" style={{ color: "var(--breach)" }}>
+              ▸ Attackers submit {c.mode === "VISION" ? "an image" : "a page"} URL; the contract fetches it {c.mode === "VISION" ? "and transcribes it" : "live"} on-chain, and the panel judges the fetched content. An unreachable link never counts as a break.
+            </p>
+          )}
           <div className="eyebrow mb-2" style={{ color: "var(--muted)" }}>{c.mode === "VAULT" ? "The gatekeeper" : "The panel's task"}</div>
           <p className="text-soft whitespace-pre-wrap mb-3">{c.task}</p>
           {c.criteria && <><div className="eyebrow mb-1" style={{ color: "var(--muted)" }}>Criteria</div><p className="text-soft whitespace-pre-wrap mb-3">{c.criteria}</p></>}
@@ -90,7 +95,7 @@ export default function TargetPage({ params }: { params: Promise<{ id: string }>
       {(attacks ?? []).length > 0 && (
         <section className="space-y-3">
           <h2 className="display text-xl text-ink">Attack log <span className="text-muted text-base mono">({attacks?.length})</span></h2>
-          {(attacks ?? []).slice().reverse().map((a) => <AttackCard key={a.seq} attack={a} />)}
+          {(attacks ?? []).slice().reverse().map((a) => <AttackCard key={a.seq} attack={a} mode={c.mode} />)}
         </section>
       )}
 
@@ -103,7 +108,7 @@ export default function TargetPage({ params }: { params: Promise<{ id: string }>
   );
 }
 
-function AttackCard({ attack }: { attack: Attack }) {
+function AttackCard({ attack, mode }: { attack: Attack; mode: ChallengeMode }) {
   return (
     <div className={`card p-5 ${attack.broke ? "card-breach" : "card-defended"}`}>
       <div className="flex items-center gap-2 mb-2 flex-wrap">
@@ -111,9 +116,7 @@ function AttackCard({ attack }: { attack: Attack }) {
         <span className="chip chip-closed">#{attack.attack_id}</span>
         <span className="mono text-xs text-muted ml-auto">{shortAddr(attack.attacker)}</span>
       </div>
-      <div className="rounded-lg p-3 mb-2 font-mono text-xs" style={{ background: "var(--surface-dim)" }}>
-        <span className="text-muted">payload › </span><span className="text-soft break-words">{attack.payload}</span>
-      </div>
+      <div className="mb-2"><AttackPayload mode={mode} payload={attack.payload} /></div>
       <div className="flex items-center gap-3 text-xs mono mb-2">
         <span className="text-muted">verdict: <span style={{ color: attack.broke ? "var(--breach)" : "var(--defended)" }}>{attack.verdict}</span></span>
         <span className="text-muted">expected: <span style={{ color: "var(--defended)" }}>{attack.expected}</span></span>
